@@ -14,6 +14,8 @@ class ImageGallerySaver {
       {int quality = 80,
       String? name,
       String? albumName = '',
+      double? lat,
+      double? lng,
       bool isReturnImagePathOfIOS = false}) async {
     final result =
         await _channel.invokeMethod('saveImageToGallery', <String, dynamic>{
@@ -21,7 +23,9 @@ class ImageGallerySaver {
       'quality': quality,
       'name': name,
       'albumName': albumName,
-      'isReturnImagePathOfIOS': isReturnImagePathOfIOS
+      'isReturnImagePathOfIOS': isReturnImagePathOfIOS,
+      'lat': lat,
+      'lng': lng,
     });
     return result;
   }

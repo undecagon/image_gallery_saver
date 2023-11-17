@@ -19,6 +19,7 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry.Registrar
+import androidx.exifinterface.media.ExifInterface
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
@@ -29,6 +30,7 @@ import java.io.OutputStream
 class ImageGallerySaverPlugin : FlutterPlugin, MethodCallHandler {
     private lateinit var methodChannel: MethodChannel
     private var applicationContext: Context? = null
+    private var savedImagePath: String? = null
 
     override fun onAttachedToEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
         this.applicationContext = binding.applicationContext
@@ -42,6 +44,8 @@ class ImageGallerySaverPlugin : FlutterPlugin, MethodCallHandler {
                 val image = call.argument<ByteArray?>("imageBytes")
                 val quality = call.argument<Int?>("quality")
                 val name = call.argument<String?>("name")
+                val lat = call.argument<Double?>("lat")
+                val lng = call.argument<Double?>("lng")
                 val albumName = call.argument<String?>("albumName")
 
                 result.success(
@@ -50,7 +54,7 @@ class ImageGallerySaverPlugin : FlutterPlugin, MethodCallHandler {
                             image ?: ByteArray(0),
                             0,
                             image?.size ?: 0
-                        ), quality, name, albumName
+                        ), quality, name, albumName , lat,lng,
                     )
                 )
             }
@@ -147,11 +151,30 @@ class ImageGallerySaverPlugin : FlutterPlugin, MethodCallHandler {
         }
     }
 
+    private fun addLocationToImage(latitude: Double?, longitude: Double?): Boolean {
+        if(savedImagePath!=null && latitude!=null && longitude!=null){
+            try {
+                val file = File(savedImagePath)
+                if (file.exists()) {
+                    val exifInterface = ExifInterface(file)
+                    exifInterface.setLatLong(latitude, longitude)
+                    exifInterface.saveAttributes()
+                    return true
+                }
+            } catch (e: IOException) {
+                e.printStackTrace()
+            }
+        }
+        return false
+    }
+
     private fun saveImageToGallery(
         bmp: Bitmap?,
         quality: Int?,
         name: String?,
-        albumName: String?
+        albumName: String?,
+        lat : Double?,
+        lng : Double?,
     ): HashMap<String, Any?> {
         // check parameters
         if (bmp == null || quality == null) {
@@ -170,6 +193,7 @@ class ImageGallerySaverPlugin : FlutterPlugin, MethodCallHandler {
                 if (fos != null) {
                     println("ImageGallerySaverPlugin $quality")
                     bmp.compress(Bitmap.CompressFormat.JPEG, quality, fos)
+                    savedImagePath = getPathFromUri(context,fileUri)
                     fos.flush()
                     success = true
                 }
@@ -180,12 +204,24 @@ class ImageGallerySaverPlugin : FlutterPlugin, MethodCallHandler {
             fos?.close()
             bmp.recycle()
         }
+        addLocationToImage(lat, lng)
         return if (success) {
             sendBroadcast(context, fileUri)
             SaveResultModel(fileUri.toString().isNotEmpty(), fileUri.toString(), null).toHashMap()
         } else {
             SaveResultModel(false, null, "saveImageToGallery fail").toHashMap()
         }
+    }
+
+    private fun getPathFromUri(context:Context, uri: Uri): String? {
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val index = it.getColumnIndex(MediaStore.Images.Media.DATA)
+                return it.getString(index)
+            }
+        }
+        return null
     }
 
     private fun saveFileToGallery(filePath: String?, name: String?): HashMap<String, Any?> {

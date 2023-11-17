@@ -20,12 +20,14 @@ public class SwiftImageGallerySaverPlugin: NSObject, FlutterPlugin {
         guard let imageData = (arguments["imageBytes"] as? FlutterStandardTypedData)?.data,
             let image = UIImage(data: imageData),
             let quality = arguments["quality"] as? Int,
+            let lat = arguments["lat"] as? Double,
+            let lng = arguments["lng"] as? Double,
             let _ = arguments["name"],
             let albumName = arguments["albumName"] as? String,
             let isReturnImagePath = arguments["isReturnImagePathOfIOS"] as? Bool
             else { return }
         let newImage = image.jpegData(compressionQuality: CGFloat(quality / 100))!
-        saveImage(UIImage(data: newImage) ?? image, isReturnImagePath: isReturnImagePath , customAlbumName: albumName)
+        saveImage(UIImage(data: newImage) ?? image, isReturnImagePath: isReturnImagePath , customAlbumName: albumName,latitude : lat, longitude : lng)
       } else if (call.method == "saveFileToGallery") {
         guard let arguments = call.arguments as? [String: Any],
               let path = arguments["file"] as? String,
@@ -76,13 +78,17 @@ public class SwiftImageGallerySaverPlugin: NSObject, FlutterPlugin {
         })
     }
     
-    func saveImage(_ image: UIImage, isReturnImagePath: Bool , customAlbumName: String) {
+    func saveImage(_ image: UIImage, isReturnImagePath: Bool , customAlbumName: String, latitude: Double?, longitude: Double?) {
         if !isReturnImagePath && customAlbumName == "" {
             UIImageWriteToSavedPhotosAlbum(image, self, #selector(didFinishSavingImage(image:error:contextInfo:)), nil)
             return
         }
         
         var imageIds: [String] = []
+        var location: CLLocation? = nil
+        if let lat = latitude, let lon = longitude {
+            location = CLLocation(latitude: lat, longitude: lon)
+        }
         
         PHPhotoLibrary.shared().performChanges( {
             var assetCollectionChangeRequest: PHAssetCollectionChangeRequest?
@@ -95,6 +101,7 @@ public class SwiftImageGallerySaverPlugin: NSObject, FlutterPlugin {
             }
 
             let req = PHAssetChangeRequest.creationRequestForAsset(from: image)
+            req.location = location
             let assetPlaceholder = req.placeholderForCreatedAsset
             assetCollectionChangeRequest?.addAssets([assetPlaceholder!] as NSFastEnumeration)
 
