@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import Photos
+import ImageIO
 
 public class SwiftImageGallerySaverPlugin: NSObject, FlutterPlugin {
     let errorMessage = "Failed to save, please check whether the permission is enabled"
@@ -89,6 +90,39 @@ public class SwiftImageGallerySaverPlugin: NSObject, FlutterPlugin {
         if let lat = latitude, let lon = longitude {
             location = CLLocation(latitude: lat, longitude: lon)
         }
+
+        let currentDate = Date()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        let currentDateString = dateFormatter.string(from: currentDate)
+        print("Image Save Time: \(currentDateString)")
+
+        guard let imageData = image.jpegData(compressionQuality: 1.0) else {
+            return
+        }
+
+        // 이미지 소스 생성
+        guard let source = CGImageSourceCreateWithData(imageData as CFData, nil) else {
+            return
+        }
+
+        // 메타데이터 딕셔너리 생성
+        let metadata = [
+            kCGImagePropertyExifDictionary as String: [
+                kCGImagePropertyExifDateTimeOriginal as String: currentDateString
+            ]
+        ]
+
+        // 메타데이터가 포함된 이미지 데이터 생성
+        let dataWithMetadata = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(dataWithMetadata, CGImageSourceGetType(source)!, 1, nil) else {
+            return
+        }
+        CGImageDestinationAddImageFromSource(destination, source, 0, metadata as CFDictionary)
+        guard CGImageDestinationFinalize(destination) else {
+            return
+        }
+
         
         PHPhotoLibrary.shared().performChanges( {
             var assetCollectionChangeRequest: PHAssetCollectionChangeRequest?
@@ -100,7 +134,7 @@ public class SwiftImageGallerySaverPlugin: NSObject, FlutterPlugin {
                 assetCollectionChangeRequest = PHAssetCollectionChangeRequest(for: assetCollection!)
             }
 
-            let req = PHAssetChangeRequest.creationRequestForAsset(from: image)
+            let req = PHAssetChangeRequest.creationRequestForAsset(from: UIImage(data: dataWithMetadata as Data)!)
             req.location = location
             let assetPlaceholder = req.placeholderForCreatedAsset
             assetCollectionChangeRequest?.addAssets([assetPlaceholder!] as NSFastEnumeration)

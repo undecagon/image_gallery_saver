@@ -26,6 +26,9 @@ import java.io.IOException
 import android.text.TextUtils
 import android.webkit.MimeTypeMap
 import java.io.OutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class ImageGallerySaverPlugin : FlutterPlugin, MethodCallHandler {
     private lateinit var methodChannel: MethodChannel
@@ -158,6 +161,10 @@ class ImageGallerySaverPlugin : FlutterPlugin, MethodCallHandler {
                 if (file.exists()) {
                     val exifInterface = ExifInterface(file)
                     exifInterface.setLatLong(latitude, longitude)
+                    val dateFormat = SimpleDateFormat("yyyy:MM:dd HH:mm:ss", Locale.getDefault())
+                    val dateTimeString = dateFormat.format(Date())
+
+                    exifInterface.setAttribute(ExifInterface.TAG_DATETIME, dateTimeString)
                     exifInterface.saveAttributes()
                     return true
                 }
