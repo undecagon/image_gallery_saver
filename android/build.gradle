@@ -25,12 +25,12 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
-    compileSdkVersion 30
+    compileSdkVersion 35
     namespace 'hu.undecagon.imagegallerysaver'
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility JavaVersion.VERSION_8
+        targetCompatibility JavaVersion.VERSION_8
     }
 
     kotlinOptions {
